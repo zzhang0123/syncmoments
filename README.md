@@ -147,8 +147,11 @@ results (`tests/model/reference`), so they run without the manuscript
 repository; the source distribution includes the tests, scripts and
 documentation. The dependency ranges in
 `pyproject.toml` do not imply every version combination has been tested.
-SciPy is confined to validation; it supplies independent special-function,
-integration and matrix-exponential references.
+The base installation does not require SciPy. Validation uses it for
+independent special-function, integration and matrix-exponential references;
+the optional `high_harmonic` extra also uses SciPy for host-side high-order
+values and basis preparation. The optional coefficient certificate additionally
+requires `mpmath`.
 
 Importing `syncmoments` enables JAX float64 globally for scientific accuracy. Import
 it before creating arrays; this is a documented compatibility side effect.
