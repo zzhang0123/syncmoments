@@ -1,20 +1,49 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-09-28)
 
-- Add a host-prepared finite-$\gamma$ high-order harmonic route for smooth
-  compact channels. It selects work by active harmonic count, retains $I$,
-  $V$ and line-dependent Faraday rotation, and prepares reusable fixed-reference
-  $N\leq1$ moment response matrices.
-- Add an optional offline, conditional per-column numerical enclosure for
-  unit-peak bump channels. The certificate checks its cached matrix and
-  reference inputs before use and propagates the stored envelope through
-  prediction. It relies on experimental mpmath interval arithmetic; high-$\gamma$
-  bounds may greatly exceed the signal. Nonzero parameter-displacement Taylor
-  remainders and scientific inference adequacy remain unbounded.
-- Prune support-excluded harmonic ranges in the existing low-order kernel and
-  document direct, exploratory and conditionally bounded routes in the
-  [high-order guide](https://syncmoments.readthedocs.io/en/latest/guide/high_order_harmonic.html).
+This release adds a finite-$\gamma$ high-order harmonic route for declared
+smooth compact channels. It keeps the discrete helical-orbit harmonic
+reference, Stokes $I$ and $V$, and each line's own response and Faraday
+phase. It does not replace the harmonic sum with the leading ultra-relativistic
+continuum model.
+
+### Added
+
+- `high_order_channel_modes` selects direct or accelerated work from the
+  number of active integer modes in each channel. The broad 0.1–3 GHz,
+  $B=5\,\mu\mathrm G$, $\gamma=3000$ fixed-point example evaluated 2,104
+  continuous-order samples without allocating an array spanning roughly
+  $10^{10}$–$10^{12}$ harmonics. This is finite resource evidence; its
+  accelerated sum, SciPy Bessel and roundoff errors remain `unbounded`.
+- `build_high_order_basis` prepares a reusable fixed-reference $N\leq1$
+  moment response matrix, including first $\gamma/B$ derivatives and
+  line-dependent phase derivatives where requested. Its ordinary numerical
+  term is `unbounded`; the response matrix can be reused in prediction and
+  fitting without repeating the harmonic calculation.
+- `certify_high_order_basis_coarse` optionally attaches a per-column
+  fixed-reference numerical envelope to that stored matrix. It covers the
+  ideal unit-peak bump and `TaylorPhase` under exact-binary inputs and
+  experimental mpmath interval arithmetic. Changes to certified coefficients
+  or inputs fail closed, including under JIT. The envelope propagates through
+  `predict` without rerunning certification. A high-$\gamma$ $N=1$ example
+  produced an error near $9\times10^{35}$ in response units, far above the
+  signal; a finite certificate is not a useful science tolerance by itself.
+- The existing low-order `HarmonicKernel` prunes support-excluded integer
+  ranges before Bessel evaluation. A manually truncated potentially active
+  range keeps an `unbounded` harmonic-truncation term.
+
+### Scope and installation
+
+The optional high-order value and basis route needs SciPy through
+`syncmoments[high_harmonic]`; the offline certificate also needs `mpmath`.
+Nonzero $\gamma/B$ displacement Taylor remainders, omitted physical effects,
+population tails and downstream inference bias have no bound from this
+release. Unsupported channels, modes, tolerances and resource caps raise or
+retain `unbounded` status. The
+[high-order guide](https://syncmoments.readthedocs.io/en/latest/guide/high_order_harmonic.html)
+separates the exploratory point values, exploratory matrix and conditional
+coefficient envelope.
 
 ## 0.4.0 (2026-09-26)
 
