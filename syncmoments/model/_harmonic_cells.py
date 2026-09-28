@@ -262,15 +262,17 @@ def sum_harmonics(fn, ms, chunk):
     """``sum_m fn(m)`` with ``fn`` vmapped over chunks inside ``lax.map``.
 
     ``fn`` maps a scalar harmonic to a pytree of arrays; padded entries
-    (harmonic 1 with zero weight) do not contribute. Each chunk is
+    (the first selected harmonic with zero weight) do not contribute. Each chunk is
     ``jax.checkpoint``-ed: reverse mode recomputes a chunk instead of storing
     its residuals (357.6 GB -> 5.8 GB of XLA temporaries for ``jax.grad`` at
     the benchmark size); values and forward mode are unchanged.
     """
     ms = jnp.asarray(ms, dtype=float)
+    if ms.size == 0:
+        raise ValueError("sum_harmonics needs at least one selected mode")
     chunk = max(1, min(int(chunk), ms.size))
     pad = (-ms.size) % chunk
-    padded = jnp.concatenate([ms, jnp.ones(pad)]).reshape(-1, chunk)
+    padded = jnp.concatenate([ms, jnp.full((pad,), ms[0])]).reshape(-1, chunk)
     mask = jnp.concatenate([jnp.ones(ms.size), jnp.zeros(pad)]).reshape(-1, chunk)
 
     @jax.checkpoint

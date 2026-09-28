@@ -614,6 +614,15 @@ channel, at the price of an envelope larger than the signal in the top two
 channels). Reducing that difference needs a narrower `gamma` support or a
 higher `N`.
 
+For the finite-$\gamma$ harmonic reference at these large orders, the
+fixed-reference high-order route now prepares an $N\leq1$ response matrix
+with $I$, $V$ and line-dependent complex polarisation. Its ordinary fast
+evaluation is exploratory; an optional offline pass attaches a conditional,
+often very loose coefficient envelope. Neither path bounds a nonzero
+$\gamma/B$ Taylor displacement or proves that the continuum example above
+is physically adequate. See [the high-order harmonic guide](https://syncmoments.readthedocs.io/en/latest/guide/high_order_harmonic.html)
+for supported channels, error statuses and a reusable-matrix example.
+
 #### Non-Gaussian independent screens
 
 `LaplaceScreen(mean, sigma)` and `GammaScreen(mean, sigma, shape=4.0, sign=1)`

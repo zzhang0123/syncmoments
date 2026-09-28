@@ -19,6 +19,7 @@ Changelog = "https://github.com/zzhang0123/syncmoments/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 validation = ["scipy>=1.16,<2", "matplotlib>=3.10,<4", "pytest>=8,<10"]
+high_harmonic = ["scipy>=1.16,<2"]
 dev = ["black>=25", "ruff>=0.12"]
 docs = ["sphinx>=8,<9", "myst-parser>=4,<5", "furo>=2024.8"]
 

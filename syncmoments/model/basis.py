@@ -215,8 +215,20 @@ def build_basis(
     notes: list[str] = []
     check_reference(reference, support, notes)
     check_kernel(
-        kernel, channels, truncation, support, (allow_truncated, allow_nonsmooth), notes
+        kernel,
+        channels,
+        truncation,
+        support,
+        reference,
+        (allow_truncated, allow_nonsmooth),
+        notes,
     )
+    if hasattr(kernel, "for_support"):
+        kernel = kernel.for_support(support, channels, reference=reference)
+        notes.append(
+            "harmonic support pruning uses the declared gamma/B support; "
+            "floating-point line evaluation error is not certified"
+        )
     index = MomentIndex.build(truncation, components=tuple(kernel.components))
     assumptions = tuple(phase.forced_assumptions())
     if "uniform_mu" in kernel.required_closures:
@@ -366,6 +378,10 @@ def basis_convergence(
             + (" (or no second route)" if cross_route else "")
         )
     alt_kernel, alt_channels, alt_route, text = check
+    if hasattr(alt_kernel, "for_support"):
+        alt_kernel = alt_kernel.for_support(
+            basis.support, alt_channels, reference=basis.reference
+        )
     alt = _build_core(
         alt_kernel,
         alt_channels,

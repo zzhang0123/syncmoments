@@ -6,8 +6,9 @@
 ``Support.truncated=False`` declares the population complete inside all three
 intervals. :func:`outside_support` compares concrete samples with those
 intervals. Samples with zero normalised weight or ``B = 0`` (no emission)
-are ignored. A relative slack of ``REL_TOL`` of the interval scale absorbs
-roundoff on the edges; anything beyond it counts as outside. Traced samples
+are ignored. By default a relative slack of ``REL_TOL`` of the interval scale
+absorbs roundoff on the edges; strict harmonic-range pruning removes it.
+Anything beyond the chosen edge counts as outside. Traced samples
 or a traced support cannot be checked eagerly: the result is then ``None``
 and callers must state the hypothesis as unchecked (``UNCHECKED`` for the
 harmonic tail, ``UNCHECKED_COMPLETE`` for a declared-complete excluded
@@ -24,6 +25,10 @@ REL_TOL = 1e-12
 UNCHECKED = (
     "conditional on every emitting electron lying inside the declared Support "
     "(gamma <= support.gamma[1], B >= support.B[0]); not checked"
+)
+UNCHECKED_HARMONIC_RANGE = (
+    "conditional on every emitting electron lying inside the declared "
+    "gamma and B Support intervals; not checked"
 )
 UNCHECKED_COMPLETE = (
     "conditional on every emitting electron lying inside all three declared "
@@ -54,7 +59,9 @@ def _emitting(samples):
     return (weights > 0) & (B > 0)
 
 
-def outside_support(samples, support, *, harmonic_only=False):
+def outside_support(
+    samples, support, *, harmonic_only=False, harmonic_range=False, strict=False
+):
     """Descriptions of the variables whose emitting samples leave ``support``.
 
     Returns ``None`` when the samples or the support are traced (unchecked),
@@ -62,8 +69,9 @@ def outside_support(samples, support, *, harmonic_only=False):
     per violating variable, ``"<name> in [min, max] vs declared [lo, hi]"``
     over the emitting samples. ``harmonic_only=True`` checks only the two
     sides that enter ``required_m_max`` (``gamma`` above ``hi``, ``B`` below
-    ``lo``); otherwise ``gamma``, ``B`` and ``depth`` are checked on both
-    sides.
+    ``lo``); ``harmonic_range=True`` checks both sides of ``gamma`` and ``B``;
+    otherwise ``gamma``, ``B`` and ``depth`` are checked on both sides.
+    ``strict=True`` removes the edge slack for exact support pruning.
     """
     if samples is None or support is None:
         return None
@@ -72,8 +80,12 @@ def outside_support(samples, support, *, harmonic_only=False):
         return None
     if not np.any(mask):
         return ()
+    if harmonic_only and harmonic_range:
+        raise ValueError("harmonic_only and harmonic_range are mutually exclusive")
     checks = (("gamma", False, True), ("B", True, False))
-    if not harmonic_only:
+    if harmonic_range:
+        checks = (("gamma", True, True), ("B", True, True))
+    elif not harmonic_only:
         checks = (("gamma", True, True), ("B", True, True), ("depth", True, True))
     found = []
     for name, check_lo, check_hi in checks:
@@ -83,7 +95,7 @@ def outside_support(samples, support, *, harmonic_only=False):
             return None
         lo, hi = bounds
         values = values[mask]
-        slack = REL_TOL * max(abs(lo), abs(hi))
+        slack = 0.0 if strict else REL_TOL * max(abs(lo), abs(hi))
         low = check_lo and bool(np.any(values < lo - slack))
         high = check_hi and bool(np.any(values > hi + slack))
         if low or high:
@@ -94,18 +106,24 @@ def outside_support(samples, support, *, harmonic_only=False):
     return tuple(found)
 
 
-def hypothesis_note(samples, outside):
+def hypothesis_note(samples, outside, *, harmonic_range=False):
     """The support hypothesis behind a zero harmonic-tail bound, as note text."""
+    hypothesis = UNCHECKED_HARMONIC_RANGE if harmonic_range else UNCHECKED
     if samples is None:
-        return UNCHECKED + " here (no samples supplied)"
+        return hypothesis + " here (no samples supplied)"
     if outside is None:
-        return UNCHECKED + " (traced samples or support)"
-    return "the supplied emitting samples were checked inside the declared Support"
+        return hypothesis + " (traced samples or support)"
+    return (
+        "the supplied emitting samples were checked strictly inside the declared gamma/B Support"
+        if harmonic_range
+        else "the supplied emitting samples were checked inside the declared Support"
+    )
 
 
 __all__ = [
     "REL_TOL",
     "UNCHECKED",
+    "UNCHECKED_HARMONIC_RANGE",
     "UNCHECKED_COMPLETE",
     "outside_support",
     "hypothesis_note",

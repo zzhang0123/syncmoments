@@ -107,7 +107,7 @@ def check_phase(phase, truncation):
         raise ValueError("phase.n_weights must equal truncation.max_b() + 1")
 
 
-def check_kernel(kernel, channels, truncation, support, allow, notes):
+def check_kernel(kernel, channels, truncation, support, reference, allow, notes):
     allow_truncated, allow_nonsmooth = allow
     if "uniform_mu" in kernel.required_closures and truncation.L_mu > 0:
         raise ValueError(
@@ -143,6 +143,18 @@ def check_kernel(kernel, channels, truncation, support, allow, notes):
                 f"harmonic sum truncated at m_max={kernel.m_max} < required_m_max="
                 f"{required} (allow_truncated=True)"
             )
+        if hasattr(kernel, "missing_intervals"):
+            missing = kernel.missing_intervals(support, channels, reference=reference)
+            if missing and not allow_truncated:
+                raise ValueError(
+                    f"mode_intervals omit potentially active orders {missing}; "
+                    "include them or pass allow_truncated=True (omission term unbounded)"
+                )
+            if missing:
+                notes.append(
+                    f"mode_intervals omit potentially active orders {missing} "
+                    "(allow_truncated=True; harmonic_truncation unbounded)"
+                )
 
 
 def truncation_record(index) -> tuple:

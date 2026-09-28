@@ -170,6 +170,13 @@ def _merge_provenance(basis, moments, allowances):
 def _unit_terms(basis, moments, m, absC, errors, statistical_input, truncation):
     """Per-electron (unit-amplitude) slots and assumption pairs."""
     n_ch, kernel_terms = basis.n_ch, basis.kernel_terms
+    # A certified basis ties its numerical envelope to the exact prepared C
+    # and reference inputs. Guard the envelope itself: JIT may discard the
+    # Stokes contraction when a caller requests only the error budget.
+    validate_numerical = getattr(basis, "validated_numerical_term", None)
+    numerical = (
+        validate_numerical() if callable(validate_numerical) else kernel_terms.numerical
+    )
     slots = {
         "basis_remainder": _basis_remainder(errors, basis, 1.0),
         "statistical_input": terms.statistical_term(
@@ -177,7 +184,7 @@ def _unit_terms(basis, moments, m, absC, errors, statistical_input, truncation):
         ),
         "physical_kernel": kernel_terms.physical_kernel,
         "harmonic_truncation": truncation,
-        "numerical": kernel_terms.numerical,
+        "numerical": numerical,
         "screen_exponent": kernel_terms.screen_exponent,
     }
     for name in (

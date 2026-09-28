@@ -53,6 +53,16 @@ syncmoments.model.harmonic
 
 .. automodule:: syncmoments.model.harmonic
 
+syncmoments.model.high_order_harmonic
+-------------------------------------
+
+.. automodule:: syncmoments.model.high_order_harmonic
+
+syncmoments.model.high_order_basis
+----------------------------------
+
+.. automodule:: syncmoments.model.high_order_basis
+
 syncmoments.model.basis
 -----------------------
 
@@ -67,4 +77,3 @@ syncmoments.model.adapters
 --------------------------
 
 .. automodule:: syncmoments.model.adapters
-

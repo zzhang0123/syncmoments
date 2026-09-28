@@ -72,7 +72,20 @@ from .kernels import (
     required_m_max,
 )
 from .harmonic import HarmonicKernel
+from .high_order_harmonic import (
+    HighOrderChannelResult,
+    HighOrderDerivativeResult,
+    HostModes,
+    high_order_channel_derivatives,
+    high_order_channel_modes,
+    high_order_line_powers,
+)
 from .basis import KernelTerms, SpectralBasis, basis_convergence, build_basis
+from .high_order_basis import build_high_order_basis
+from ._certified_high_order_basis import (
+    CoarseHighOrderBasisReport,
+    certify_high_order_basis_coarse,
+)
 from .predict import Prediction, direct_channel_average, predict
 from . import adapters, fit
 
@@ -121,10 +134,19 @@ __all__ = [
     "ProjectedModes",
     "required_m_max",
     "HarmonicKernel",
+    "HighOrderChannelResult",
+    "HighOrderDerivativeResult",
+    "HostModes",
+    "high_order_channel_derivatives",
+    "high_order_channel_modes",
+    "high_order_line_powers",
     "KernelTerms",
     "SpectralBasis",
     "basis_convergence",
     "build_basis",
+    "build_high_order_basis",
+    "CoarseHighOrderBasisReport",
+    "certify_high_order_basis_coarse",
     "Prediction",
     "direct_channel_average",
     "predict",

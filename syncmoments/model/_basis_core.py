@@ -117,6 +117,7 @@ def refined(kernel, channels, route, factor, full, *, cross=False):
         n_nodes = factor * kernel.resolution() if full else kernel.n_nodes
         alt = HarmonicKernel(
             kernel.m_max,
+            mode_intervals=kernel.mode_intervals,
             n_nodes=n_nodes,
             n_outer=factor * kernel.n_outer,
             n_inner=factor * kernel.n_inner,
@@ -128,6 +129,13 @@ def refined(kernel, channels, route, factor, full, *, cross=False):
             E_phys=kernel.E_phys,
             quadrature=target,
             derivatives=kernel.derivatives,
+        )
+        object.__setattr__(alt, "channel_mode_intervals", kernel.channel_mode_intervals)
+        object.__setattr__(
+            alt, "selected_channel_support", kernel.selected_channel_support
+        )
+        object.__setattr__(
+            alt, "selected_parameter_support", kernel.selected_parameter_support
         )
         text = f"{target} route at {factor}x angular nodes" + (
             f" and {factor}x Bessel nodes" if full else ""
@@ -214,7 +222,10 @@ def harmonic_activity(kernel, channels, reference):
     beta = math.sqrt(1.0 - 1.0 / gamma0**2)
     nu_B = E_ESU * B0 / (2.0 * math.pi * gamma0 * M_E * C_CGS)
     support = np.asarray(channels.support, dtype=float)
-    m = np.arange(1, kernel.m_max + 1, dtype=float)[:, None]
+    orders = np.asarray(kernel.harmonics(), dtype=float)
+    if orders.size == 0:
+        return None, 0
+    m = orders[:, None]
     lower = np.maximum(-1.0, (1.0 - m * nu_B / support[None, :, 0]) / beta)
     upper = np.minimum(1.0, (1.0 - m * nu_B / support[None, :, 1]) / beta)
     lo_pos, hi_pos = np.clip(lower, 0.0, 1.0), np.clip(upper, 0.0, 1.0)
@@ -224,7 +235,7 @@ def harmonic_activity(kernel, channels, reference):
     active = np.flatnonzero(np.any(filled, axis=(0, 2)))
     if active.size == 0:
         return None, 0
-    return (int(active[0]) + 1, int(active[-1]) + 1), cells
+    return (int(orders[active[0]]), int(orders[active[-1]])), cells
 
 
 def resolution(kernel):
@@ -237,13 +248,19 @@ def resolution(kernel):
 
 def numerics_record(kernel, channels, reference, route) -> tuple:
     m_range, cells = harmonic_activity(kernel, channels, reference)
-    return (
+    record: tuple[tuple[str, object], ...] = (
         ("n_nodes", resolution(kernel)),
         ("m_range", m_range),
         ("width_ratio_min", float(np.min(channels.width_ratio()))),
         ("cells", cells),
         ("route", route),
     )
+    if isinstance(kernel, HarmonicKernel):
+        record += (
+            ("computed_mode_intervals", kernel.selected_intervals()),
+            ("computed_channel_mode_intervals", kernel.channel_mode_intervals),
+        )
+    return record
 
 
 # -- screen exponent ----------------------------------------------------------------------

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Add a host-prepared finite-$\gamma$ high-order harmonic route for smooth
+  compact channels. It selects work by active harmonic count, retains $I$,
+  $V$ and line-dependent Faraday rotation, and prepares reusable fixed-reference
+  $N\leq1$ moment response matrices.
+- Add an optional offline, conditional per-column numerical enclosure for
+  unit-peak bump channels. The certificate checks its cached matrix and
+  reference inputs before use and propagates the stored envelope through
+  prediction. It relies on experimental mpmath interval arithmetic; high-$\gamma$
+  bounds may greatly exceed the signal. Nonzero parameter-displacement Taylor
+  remainders and scientific inference adequacy remain unbounded.
+- Prune support-excluded harmonic ranges in the existing low-order kernel and
+  document direct, exploratory and conditionally bounded routes in the
+  [high-order guide](https://syncmoments.readthedocs.io/en/latest/guide/high_order_harmonic.html).
+
 ## 0.4.0 (2026-09-26)
 
 This release adds pre-fit response reduction and fits of identifiable

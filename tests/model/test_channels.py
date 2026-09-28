@@ -1,6 +1,7 @@
 """Channel responses: NumPy oracles, edge smoothness, quadrature and AD safety."""
 
 import math
+from fractions import Fraction
 
 import jax
 import jax.numpy as jnp
@@ -194,6 +195,22 @@ def test_tophat_is_one_inside_zero_outside_smoothness_zero():
     inside = np.asarray(channels(CENTRES))
     assert np.all(np.diag(inside) == 1)
     assert channels.smoothness == 0
+
+
+def test_channel_support_must_remain_resolvable_and_finite():
+    with pytest.raises(Exception, match="working precision"):
+        Channels.bump([1e16], [0.5])
+    with pytest.raises(Exception, match="working precision"):
+        Channels.bump([1e308], [1e308])
+
+
+def test_bump_support_contains_exact_binary_smooth_zeros():
+    channels = Channels.bump([1e8], [5e-8])
+    centre = Fraction.from_float(float(np.asarray(channels.centres_hz)[0]))
+    width = Fraction.from_float(float(np.asarray(channels.widths_hz)[0]))
+    lo, hi = (Fraction.from_float(float(v)) for v in np.asarray(channels.support)[0])
+    assert lo <= centre - width
+    assert hi >= centre + width
 
 
 @pytest.mark.parametrize("delta", [1e-12, 1e-9, 1e-6])

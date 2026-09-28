@@ -246,7 +246,7 @@ def project_product(
     ell = np.arange(L_mu + 1)[:, None] + np.arange(L_eta + 1)[None, :]
     parity = jnp.asarray((-1.0) ** ell)
 
-    def per_channel(carry, args):
+    def evaluate_channel(args, modes):
         nu_lo, nu_hi, j = args
 
         def one(m):
@@ -294,13 +294,44 @@ def project_product(
 
             return sum_point_blocks(points, (jnp.arange(size),), block)
 
-        return carry, sum_harmonics(one, kernel.harmonics(), chunk)
+        return sum_harmonics(one, modes, chunk)
 
-    _, grids = jax.lax.scan(
-        per_channel,
-        None,
-        (support[:, 0], support[:, 1], jnp.arange(channels.n_ch)),
-    )
+    args = (support[:, 0], support[:, 1], jnp.arange(channels.n_ch))
+    if kernel.channel_mode_intervals is None:
+        _, grids = jax.lax.scan(
+            lambda carry, row: (carry, evaluate_channel(row, kernel.harmonics())),
+            None,
+            args,
+        )
+    else:
+        if len(kernel.channel_mode_intervals) != channels.n_ch:
+            raise ValueError("channel_mode_intervals must have one entry per channel")
+        n_weights = 1 if phase is None else phase.n_weights
+        real = jnp.result_type(support, 1.0)
+        complex_dtype = jnp.result_type(support, 1j)
+        shape = (L_mu + 1, L_eta + 1)
+
+        def branch(ranges):
+            if not ranges:
+                return lambda row: {
+                    alpha: (
+                        jnp.zeros(shape, dtype=real),
+                        jnp.zeros(shape, dtype=real),
+                        jnp.zeros((n_weights,) + shape, dtype=complex_dtype),
+                    )
+                    for alpha in alphas
+                }
+            modes = jnp.concatenate(
+                [jnp.arange(lo, hi + 1, dtype=float) for lo, hi in ranges]
+            )
+            return lambda row: evaluate_channel(row, modes)
+
+        branches = tuple(branch(ranges) for ranges in kernel.channel_mode_intervals)
+        _, grids = jax.lax.scan(
+            lambda carry, row: (carry, jax.lax.switch(row[2], branches, row)),
+            None,
+            args,
+        )
     # grids[a] = (I, V (n_ch, L+1, L+1), P (n_ch, n_w, L+1, L+1)); the mu < 0 half:
     # I, Q even and V odd under (mu, eta) -> (-mu, -eta).
     return {

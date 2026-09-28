@@ -16,6 +16,9 @@ powers) and has units 1/Hz for ``"unit_integral"`` (``int R dnu = 1``). No
 Shapes: ``n_ch`` channels; ``__call__(nu)`` returns ``(n_ch, *nu.shape)``.
 ``nodes``/``weights`` are an ``n_nu``-point Gauss-Legendre rule on each support
 (weights include the Jacobian ``(nu_hi - nu_lo)/2``) for the continuum route.
+For ``bump``, the stored support is padded outward by one floating-point step
+after checking that the band is resolvable. This contains the exact-binary
+zeros ``c±w`` even when the rounded sum/subtraction falls inside them.
 
 Smoothness classes (``smoothness``): 99 for the C-infinity families (``bump``,
 ``planck_taper``), 1 for ``raised_cosine`` (continuous first derivative, jump
@@ -117,11 +120,43 @@ class Channels(eqx.Module):
         if widths.shape != centres.shape:
             raise ValueError("centres_hz and widths_hz must have the same shape")
         lo, hi = centres - half_widths, centres + half_widths
+        raw_invalid = (
+            jnp.any(~jnp.isfinite(lo))
+            | jnp.any(~jnp.isfinite(hi))
+            | jnp.any(lo <= 0)
+            | jnp.any(hi <= lo)
+        )
         lo = eqx.error_if(
-            lo, jnp.any(lo <= 0), "channel support must lie at positive frequency"
+            lo,
+            raw_invalid,
+            "channel support must be finite with 0 < lo < hi at working precision",
+        )
+        if family == "bump":
+            # Exact binary c±w can lie beyond a rounded floating-point sum.
+            # Include both flat zeros so the stored support never clips a
+            # mathematically smooth bump into a moving-edge jump. The small
+            # support adjustment has zero tangent: response derivatives are
+            # governed by the smooth bump profile, not by float ULP steps.
+            lo_fixed = jax.lax.stop_gradient(lo)
+            hi_fixed = jax.lax.stop_gradient(hi)
+            lo += (
+                jnp.nextafter(lo_fixed, jnp.asarray(-jnp.inf, dtype=lo.dtype))
+                - lo_fixed
+            )
+            hi += (
+                jnp.nextafter(hi_fixed, jnp.asarray(jnp.inf, dtype=hi.dtype)) - hi_fixed
+            )
+        lo = eqx.error_if(
+            lo,
+            jnp.any(~jnp.isfinite(lo))
+            | jnp.any(~jnp.isfinite(hi))
+            | jnp.any(lo <= 0)
+            | jnp.any(hi <= lo),
+            "channel support must be finite with 0 < lo < hi at working precision",
         )
         x, w = legendre_rule(n_nu)
-        mid, half = (hi + lo) / 2, (hi - lo) / 2
+        half = (hi - lo) / 2
+        mid = lo + half
         return cls(
             family=family,
             centres_hz=centres,
@@ -141,7 +176,11 @@ class Channels(eqx.Module):
     def bump(
         cls, centres_hz, widths_hz, *, normalisation="unit_peak", n_nu=64
     ) -> "Channels":
-        """``R = exp(1 - 1/(1 - t^2))``, ``t = (nu - c)/w``, ``|t| < 1``; C-infinity."""
+        """``R = exp(1 - 1/(1 - t^2))``, ``t = (nu - c)/w``; C-infinity.
+
+        The stored support includes one outward ULP on each side of ``c±w``
+        so exact-binary input rounding cannot clip the flat zeros.
+        """
         w = jnp.asarray(widths_hz)
         return cls._build(
             "bump",
@@ -344,6 +383,7 @@ class Channels(eqx.Module):
         if self.normalisation == "unit_peak":
             return jnp.ones_like(self.centres_hz)
         if self.family == "table":
+            assert self.table is not None
             grid, rows = (np.asarray(part) for part in self.table)
             return 1.0 / jnp.asarray(np.trapezoid(rows, grid, axis=1))
         return 1.0 / (
@@ -362,6 +402,7 @@ class Channels(eqx.Module):
         if self.family == "gaussian":
             return math.exp(-0.5 * self.support_sigma**2)
         if self.family == "table":
+            assert self.table is not None
             grid, rows = (np.asarray(part) for part in self.table)
             return table_edge_jump(grid, rows, np.asarray(self.support))
         return 0.0
@@ -386,6 +427,7 @@ class Channels(eqx.Module):
         if self.family == "gaussian":
             items.append(("support_sigma", self.support_sigma))
         if self.family == "table":
+            assert self.table is not None
             items.append(("n_table", len(self.table[0])))
         return tuple(items)
 
